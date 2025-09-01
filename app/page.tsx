@@ -57,6 +57,14 @@ export default function LandonJumpGame() {
   useEffect(() => {
     physicsRef.current = { y: 0, velocity: 0, isJumping: false }
     console.log('Physics initialized to:', physicsRef.current)
+    
+    // Force mobile viewport refresh
+    if (typeof window !== 'undefined') {
+      const viewport = document.querySelector('meta[name=viewport]')
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no')
+      }
+    }
   }, [])
 
   // Load high score from localStorage
@@ -316,18 +324,33 @@ export default function LandonJumpGame() {
 
     const handleTouch = (e: TouchEvent) => {
       e.preventDefault()
+      e.stopPropagation()
       if (gameState === 'menu' || gameState === 'gameOver') {
         startGame()
-      } else {
+      } else if (gameState === 'playing') {
+        jump()
+      }
+    }
+
+    const handleClick = (e: MouseEvent) => {
+      e.preventDefault()
+      if (gameState === 'menu' || gameState === 'gameOver') {
+        startGame()
+      } else if (gameState === 'playing') {
         jump()
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
-    window.addEventListener('touchstart', handleTouch)
+    window.addEventListener('touchstart', handleTouch, { passive: false })
+    window.addEventListener('touchend', handleTouch, { passive: false })
+    window.addEventListener('click', handleClick)
+    
     return () => {
       window.removeEventListener('keydown', handleKeyPress)
       window.removeEventListener('touchstart', handleTouch)
+      window.removeEventListener('touchend', handleTouch)
+      window.removeEventListener('click', handleClick)
     }
   }, [gameState, jump])
 
@@ -408,25 +431,42 @@ export default function LandonJumpGame() {
 
         {/* Game Screen */}
         <motion.div
-          className="relative border-4 border-white/20 rounded-2xl overflow-hidden bg-gradient-to-b from-cyan-900/20 to-blue-900/20 backdrop-blur-sm mx-auto w-full max-w-4xl"
+          className="relative border-4 border-white/20 rounded-2xl overflow-hidden bg-gradient-to-b from-cyan-900/20 to-blue-900/20 backdrop-blur-sm mx-auto w-full max-w-4xl touch-none select-none"
           style={{ 
             width: '100%',
             height: '400px',
-            maxWidth: '800px'
+            maxWidth: '800px',
+            touchAction: 'none'
           }}
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          onClick={() => gameState === 'playing' && jump()}
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('Click detected, game state:', gameState)
+            if (gameState === 'menu' || gameState === 'gameOver') {
+              startGame()
+            } else if (gameState === 'playing') {
+              jump()
+            }
+          }}
           onTouchStart={(e) => {
             e.preventDefault()
-            if (gameState === 'playing') jump()
+            e.stopPropagation()
+            console.log('Touch detected, game state:', gameState)
+            if (gameState === 'menu' || gameState === 'gameOver') {
+              startGame()
+            } else if (gameState === 'playing') {
+              jump()
+            }
           }}
         >
           {/* Game UI Overlay */}
           <div className="absolute top-4 left-4 z-20 text-white">
             <div className="text-xl font-bold">Score: {score}</div>
             <div className="text-sm opacity-75">High Score: {highScore}</div>
+            <div className="text-xs opacity-50 md:hidden">📱 Tap to play!</div>
           </div>
 
           {/* Ground */}
@@ -700,6 +740,22 @@ export default function LandonJumpGame() {
           <p className="text-xs mt-2">Avoid obstacles and see how legendary you can become!</p>
           <p className="text-xs mt-1 md:hidden">📱 Mobile-optimized for touch controls!</p>
         </motion.div>
+
+        {/* Mobile Touch Area - Full Screen Backup */}
+        <div 
+          className="fixed inset-0 z-0 md:hidden"
+          style={{ touchAction: 'none' }}
+          onTouchStart={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            console.log('Mobile touch area activated, game state:', gameState)
+            if (gameState === 'menu' || gameState === 'gameOver') {
+              startGame()
+            } else if (gameState === 'playing') {
+              jump()
+            }
+          }}
+        />
 
         {/* Fun messages based on score */}
         <AnimatePresence>
